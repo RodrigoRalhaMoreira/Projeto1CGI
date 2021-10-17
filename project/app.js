@@ -15,7 +15,7 @@ var tw;
 var th;
 var drawVertice = [];
 var color;
-const MAX_DOTS = 10;
+const MAX_DOTS = 30;
 
 function animate(time)
 {
@@ -30,6 +30,7 @@ function animate(time)
     gl.uniform1f(th, table_height);
     gl.uniform4fv(color, [1.0,1.0,1.0,1.0]);
     gl.drawArrays(gl.POINTS, 0, vertices.length);
+
     gl.uniform4fv(color, [1.0,0.0,0.0,1.0]);
     gl.drawArrays(gl.POINTS, vertices.length, Math.min(drawVertice.length), MAX_DOTS);
 }
@@ -41,6 +42,7 @@ function setup(shaders)
 
     program = UTILS.buildProgramFromSources(gl, shaders["shader.vert"], shaders["shader.frag"]);
 
+    //canvas adjustment
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     table_height = table_width * canvas.height / canvas.width;
@@ -48,17 +50,20 @@ function setup(shaders)
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
+    //creating vertices
     for(let x = -1.5; x <= 1.5; x += grid_spacing) {
         for(let y = -table_height/2; y <= table_height/2; y += grid_spacing) {
             vertices.push(MV.vec2(x,y));
         }
     }
 
+    //creating the buffer with the size of the number of vertices plus the ones to be created
     aBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, aBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertices.length*MV.sizeof["vec2"] + MAX_DOTS*MV.sizeof["vec2"], gl.STATIC_DRAW);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, MV.flatten(vertices));
 
+    //
     const vPosition = gl.getAttribLocation(program, "vPosition");
     gl.vertexAttribPointer(vPosition, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(vPosition);
