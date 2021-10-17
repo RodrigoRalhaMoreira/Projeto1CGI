@@ -51,8 +51,8 @@ function setup(shaders)
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
     //creating vertices
-    for(let x = -1.5; x <= 1.5; x += grid_spacing) {
-        for(let y = -table_height/2; y <= table_height/2; y += grid_spacing) {
+    for(let x = -1.5; x <= 1.5; x = Number(Number(x+grid_spacing).toFixed(2))) {
+        for(let y = -table_height/2; y <= table_height/2; y = Number(Number(y+grid_spacing).toFixed(2))) {
             vertices.push(MV.vec2(x,y));
         }
     }
