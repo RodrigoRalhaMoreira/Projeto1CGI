@@ -5,17 +5,16 @@ import * as MV from '../../libs/MV.js' // imports from the libraries
 
 const table_width = 3.0;
 const grid_spacing = 0.05;
-const MAX_DOTS = 10;
-const MAX_CHARGES = 10;
+const MAX_CHARGES = 30;
 
 let gl;
 let table_height;
 let vertices = [];
 // Necessita de ser atualizado regularmente pelo facto das cargas estarem em movimento.
 let position = []; // Guarda as posições das cargas. 
-let direction = true; // global initialisation
+let electronsV = [];
+let protonsV = [];
 
-var draw = [];
 var program;
 var aBuffer;
 var tbw;
@@ -24,8 +23,6 @@ var colour;
 var vel = 0.0;
 var velLoc;
 var totalCharges;
-var electrons;
-var protons;
 
 /**
  * canvas.width/canvas.height = table.width/table.height;
@@ -41,21 +38,24 @@ function animate(time) {
     // drawing code
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.useProgram(program);
-
-    vel += 0.05;
-
     gl.uniform1f(tbw, table_width);
     gl.uniform1f(tbh, table_height);
-
     gl.uniform4fv(colour, [1.0, 1.0, 1.0, 1.0]); // a colour fica com uma cor uniforme
-    gl.uniform1f(velLoc, 0);
+    gl.uniform1f(velLoc, 0); // puts the angle of Vert of rotation to 0.
     // starts in 0 and ends in the last index of vertices array
     gl.drawArrays(gl.POINTS, 0, vertices.length); //gl.points -> draw a single dot
-    gl.uniform4fv(colour, [1.0, 0.0, 1.0, 1.0]);
-    // gl.drawArrays(mode, ,..first (starting index in the arrays).., count(number of indices to be rendered);
+    gl.uniform4fv(colour, [1.0, 1.0, 1.0, 1.0]);
+    
     gl.uniform1f(velLoc, vel);
-    gl.drawArrays(gl.POINTS, vertices.length, draw.length, MAX_DOTS); 
-    // gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    gl.drawArrays(gl.POINTS, vertices.length, /**electronsV.length,**/  MAX_CHARGES);
+    
+    // gl.uniform1f(velLoc, -vel); // mete velocidade no vertice de rotacao -> 
+    // gl.drawArrays(mode, ,..first (starting index in the arrays).., count(number of indices to be rendered);
+    // gl.drawArrays(gl.POINTS, vertices.length, protonsV.length, MAX_CHARGES); // desenha um ponto que e aloca a localizaçao na 
+    // 1a pos do array electrons e tem como maximo size MAX_CHARGES
+   
+    vel += 0.05;
+
     /**
     // envia cada uma das posições das cargas para o vertex shader
     for(let i = 0; i < MAX_CHARGES; i++) {
@@ -65,7 +65,7 @@ function animate(time) {
         gl.uniform2fv(uPosition, MV.flatten(position[i]));
     }
     **/
-}
+}   
 
 // setup -> Função invocada na chamada colocada no final do script, após carregamento dos shaders
 function setup(shaders) {
@@ -74,8 +74,6 @@ function setup(shaders) {
     canvas.width = window.innerWidth; // canvas fica do tamanho da tela do computador
     canvas.height = window.innerHeight; 
     totalCharges = 0;
-    electrons = 0;
-    protons = 0;
 
     gl = UTILS.setupWebGL(canvas);
 
@@ -117,7 +115,7 @@ function setup(shaders) {
     gl.bindBuffer(gl.ARRAY_BUFFER, aBuffer);
     // preenche um buffer com dados -> gl.bufferData(target, size, usage);
     // tamanho do buffer vai ser do dos vértices com os dos novos vértices(atraves do MAX_DOTS) 
-    gl.bufferData(gl.ARRAY_BUFFER, vertices.length * MV.sizeof["vec2"] + MAX_DOTS * MV.sizeof["vec2"], gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices.length * MV.sizeof["vec2"] + MAX_CHARGES * MV.sizeof["vec2"], gl.STATIC_DRAW);
     // gl.bufferSubData(target, offset, ArrayBuffer srcData);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, MV.flatten(vertices)); // cria outro buffer com outro tipo de data para ser guardada
     //1o buffer -> guarda todos os pontos || 2o buffer -> gurada todos antes das alteracoes
@@ -158,28 +156,25 @@ function setup(shaders) {
 
         if(totalCharges < MAX_CHARGES) {
             if(event.shiftKey) {
-                console.log("(" + x + "," + y + ")"); // insere um eletrão com o shift
-                electrons++;
-                totalCharges ++;
+                let ev = electronsV.length % (MAX_CHARGES/2);
+                gl.bufferSubData(gl.ARRAY_BUFFER, vertices.length * MV.sizeof["vec2"] + 
+                ev * MV.sizeof["vec2"], MV.flatten(MV.vec2(x,y)));
+                electronsV.push(MV.vec2(x,y)); // o evento é guardado no array electronsV, que guarda os vertices q foram clicados
             }
             else {
-                totalCharges ++;
-                protons++;
-                console.log("(" + x + "," + y + ")"); // insere um protão com o click normal
-                
+                let ep = protonsV.length % (MAX_CHARGES/2);
+                gl.bufferSubData(gl.ARRAY_BUFFER, vertices.length * MV.sizeof["vec2"] + 
+                MAX_CHARGES/2 * MV.sizeof["vec2"] +
+                ep * MV.sizeof["vec2"], MV.flatten(MV.vec2(x,y)));
+                protonsV.push(MV.vec2(x,y)); // o evento é guardado no array protonsV, que guarda os vertices q foram clicados
             }
+            console.log("Clicked at (" + x + "," + y + ")"); // insere um eletrão com o shift 
+            totalCharges ++;
         }
-        
-    console.log("Click at (" + x + ", " + y + ")");
-    
-    gl.bufferSubData(gl.ARRAY_BUFFER, vertices.length* MV.sizeof["vec2"] + 
-    (draw.length % MAX_DOTS)*MV.sizeof["vec2"], MV.flatten(MV.vec2(x,y)));
-    draw.push(MV.vec2(x,y)); // o evento é guardado no array draw, que guarda os vertices q foram clicados
+        else 
+            alert("maximo de cargas permitido foi atingido");
     });
-    
     window.requestAnimationFrame(animate);
 }
 
 UTILS.loadShadersFromURLS(["shader.vert", "shader.frag"]).then(s => setup(s));
-
-
