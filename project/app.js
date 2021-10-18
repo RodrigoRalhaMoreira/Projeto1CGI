@@ -1,5 +1,6 @@
 import * as UTILS from '../../libs/utils.js';
 import * as MV from '../../libs/MV.js'
+import { vec2 } from '../libs/MV.js';
 
 /** @type {WebGLRenderingContext} */
 let gl;
@@ -13,9 +14,12 @@ let vertices = [];
 var program;
 var tw;
 var th;
+var dx,dy;
 var drawVertice = [];
 var color;
-const MAX_DOTS = 30;
+const MAX_CHARGES = 30;
+var angleShader;
+var angle = 0;
 
 function animate(time)
 {
@@ -26,13 +30,16 @@ function animate(time)
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     gl.useProgram(program);
+    gl.uniform1f(angleShader, 0);
     gl.uniform1f(tw, table_width);
     gl.uniform1f(th, table_height);
     gl.uniform4fv(color, [1.0,1.0,1.0,1.0]);
     gl.drawArrays(gl.POINTS, 0, vertices.length);
 
-    gl.uniform4fv(color, [1.0,0.0,0.0,1.0]);
-    gl.drawArrays(gl.POINTS, vertices.length, Math.min(drawVertice.length), MAX_DOTS);
+    gl.uniform4fv(color, [0.5,0.3,1.0,1.0]);
+    gl.uniform1f(angleShader, angle);
+    angle += 0.03;
+    gl.drawArrays(gl.POINTS, vertices.length, Math.min(drawVertice.length), MAX_CHARGES);
 }
 
 function setup(shaders)
@@ -51,7 +58,7 @@ function setup(shaders)
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
 
     //creating vertices
-    for(let x = -1.5; x <= 1.5; x = Number(Number(x+grid_spacing).toFixed(2))) {
+    for(let x = -(table_width/2); x <= (table_width/2); x = Number(Number(x+grid_spacing).toFixed(2))) {
         for(let y = -table_height/2; y <= table_height/2; y = Number(Number(y+grid_spacing).toFixed(2))) {
             vertices.push(MV.vec2(x,y));
         }
@@ -60,7 +67,7 @@ function setup(shaders)
     //creating the buffer with the size of the number of vertices plus the ones to be created
     aBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, aBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER, vertices.length*MV.sizeof["vec2"] + MAX_DOTS*MV.sizeof["vec2"], gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices.length*MV.sizeof["vec2"] + MAX_CHARGES*MV.sizeof["vec2"], gl.STATIC_DRAW);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, MV.flatten(vertices));
 
     //
@@ -68,9 +75,15 @@ function setup(shaders)
     gl.vertexAttribPointer(vPosition, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(vPosition);
 
+    //uniform variables
     tw = gl.getUniformLocation(program, "table_width");
     th = gl.getUniformLocation(program, "table_height");
     color = gl.getUniformLocation(program, "color");
+    dx = gl.getUniformLocation(program, "dx");
+    dy = gl.getUniformLocation(program, "dy");
+    angleShader = gl.getUniformLocation(program, "uTheta");
+
+    //event listeners
 
     window.addEventListener("resize", function () {
         canvas.width = window.innerWidth;
@@ -81,29 +94,16 @@ function setup(shaders)
 
     canvas.addEventListener("click", function(event) {
         // Start by getting x and y coordinates inside the canvas element
-        var centralX = canvas.width/2;
-        var centralY = canvas.height/2;
-        var x = event.offsetX;
-        var y = event.offsetY;
+        var x = (event.offsetX / canvas.width - 1 / 2) * table_width;
+        var y = -(event.offsetY / canvas.height - 1 / 2) * table_height;
         
-        if(x < centralX) {
-            x = (-centralX + event.offsetX) * (-table_width/2) / (-centralX);
-        }
-        else {
-            x = (event.offsetX - centralX) * (table_width/2) / (centralX); 
-        }
-
-        if(y < centralY) {
-            y = (centralY - event.offsetY) * (table_height/2) / (centralY);
-        }
-        else {
-            y = (event.offsetY - centralY) * (-table_height/2) / (centralY); 
-        }
-
-        console.log("Click at (" + x + ", " + y + ")");
-
-        gl.bufferSubData(gl.ARRAY_BUFFER, vertices.length*MV.sizeof["vec2"] + (drawVertice.length % MAX_DOTS)*MV.sizeof["vec2"], MV.flatten(MV.vec2(x,y)));
+        gl.bufferSubData(gl.ARRAY_BUFFER, vertices.length*MV.sizeof["vec2"] + (drawVertice.length % MAX_CHARGES)*MV.sizeof["vec2"], MV.flatten(MV.vec2(x,y)));
         drawVertice.push(MV.vec2(x,y));
+
+        for(let i=0; i<MAX_CHARGES && i<drawVertice.length; i++) {
+            const uPosition = gl.getUniformLocation(program, "uPosition[" + i + "]");
+            gl.uniform2fv(uPosition, MV.flatten(drawVertice[i]));
+        }
     }); 
 
     window.requestAnimationFrame(animate);
