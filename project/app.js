@@ -17,9 +17,12 @@ var proton = [];
 var electron = [];
 var color;
 const MAX_CHARGES = 30;
-var angleShader;
-var angle = 0;
+var angle = 0.05;
 var draw_moving_points = true;
+var vPosition;
+var drawn_protons = 0;
+var drawn_electrons = 0;
+var opacity = 1.0;
 
 function animate(time)
 {
@@ -30,22 +33,36 @@ function animate(time)
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     gl.useProgram(program);
-    gl.uniform1f(angleShader, 0);
     gl.uniform1f(tw, table_width);
     gl.uniform1f(th, table_height);
-    gl.uniform4fv(color, [1.0,1.0,1.0,1.0]);
-    gl.drawArrays(gl.POINTS, 0, vertices.length);
+    //gl.uniform4fv(color, [1.0,1.0,1.0,1.0]);
+    //gl.drawArrays(gl.POINTS, 0, vertices.length);
 
-    if (draw_moving_points){
-        gl.uniform4fv(color, [0.5,0.3,1.0,1.0]);
-        gl.uniform1f(angleShader, -angle);
-        gl.drawArrays(gl.POINTS, vertices.length, Math.min(electron.length, MAX_CHARGES/2.0));
-
-        gl.uniform4fv(color, [1.0,0.0,0.0,1.0]);
-        gl.uniform1f(angleShader, angle);
-        gl.drawArrays(gl.POINTS, vertices.length + MAX_CHARGES/2.0, Math.min(proton.length, MAX_CHARGES/2.0));
+    if (draw_moving_points) {opacity = 1.0;}
+    else {opacity = 0.0;}
+    gl.uniform4fv(color, [0.5,0.3,1.0,opacity]);
+    for(let i = 0; i < electron.length; i++){
+        var s = Math.sin( angle );
+        var c = Math.cos( angle );
+        var y = electron[i][1];  
+        var x = electron[i][0];
+        electron[i][0] = -s*y + c*x;
+        electron[i][1] = s*x + c*y;
     }
-    angle += 0.005;
+    gl.bufferSubData(gl.ARRAY_BUFFER, vertices.length*MV.sizeof["vec2"], MV.flatten(electron));
+    gl.drawArrays(gl.POINTS, vertices.length, Math.min(electron.length, MAX_CHARGES/2.0));
+
+    gl.uniform4fv(color, [1.0,0.0,0.0,opacity]);
+    for(let i = 0; i < proton.length; i++){
+        var s = Math.sin( -angle );
+        var c = Math.cos( -angle );
+        var y = proton[i][1];  
+        var x = proton[i][0];
+        proton[i][0] = -s*y + c*x;
+        proton[i][1] = s*x + c*y;
+    }
+    gl.bufferSubData(gl.ARRAY_BUFFER, vertices.length*MV.sizeof["vec2"] + (MAX_CHARGES/2.0) *MV.sizeof["vec2"], MV.flatten(proton));
+    gl.drawArrays(gl.POINTS, vertices.length + MAX_CHARGES/2.0, Math.min(proton.length, MAX_CHARGES/2.0));
 }
 
 function setup(shaders)
@@ -77,7 +94,7 @@ function setup(shaders)
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, MV.flatten(vertices));
     
     //
-    const vPosition = gl.getAttribLocation(program, "vPosition");
+    vPosition = gl.getAttribLocation(program, "vPosition");
     gl.vertexAttribPointer(vPosition, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(vPosition);
 
@@ -85,7 +102,6 @@ function setup(shaders)
     tw = gl.getUniformLocation(program, "table_width");
     th = gl.getUniformLocation(program, "table_height");
     color = gl.getUniformLocation(program, "color");
-    angleShader = gl.getUniformLocation(program, "uTheta");
 
     //event listeners
 
@@ -102,16 +118,18 @@ function setup(shaders)
         var y = -(event.offsetY / canvas.height - 1 / 2) * table_height;
 
         if(event.shiftKey) {
-            let electron_position = electron.length % (MAX_CHARGES/2);
+            let electron_position = drawn_electrons % (MAX_CHARGES/2);
             let bufferPlace = vertices.length*MV.sizeof["vec2"] + electron_position*MV.sizeof["vec2"];
             gl.bufferSubData(gl.ARRAY_BUFFER, bufferPlace, MV.flatten(MV.vec2(x,y)));
-            electron.push(MV.vec2(x,y));
+            electron.splice(electron_position, 1, MV.vec2(x,y));
+            drawn_electrons++;
         }
         else{
-            let proton_position = proton.length % (MAX_CHARGES/2);
-            let bufferPlace =  vertices.length*MV.sizeof["vec2"] + (MAX_CHARGES/2)*MV.sizeof["vec2"] + proton_position*MV.sizeof["vec2"];
+            let proton_position = drawn_protons % (MAX_CHARGES/2);
+            let bufferPlace =  vertices.length*MV.sizeof["vec2"] + (MAX_CHARGES/2)*MV.sizeof["vec2"] + proton_position * MV.sizeof["vec2"];
             gl.bufferSubData(gl.ARRAY_BUFFER, bufferPlace, MV.flatten(MV.vec2(x,y)));
-            proton.push(MV.vec2(x,y));
+            proton.splice(proton_position, 1, MV.vec2(x,y));
+            drawn_protons++;
         }
     }); 
 
