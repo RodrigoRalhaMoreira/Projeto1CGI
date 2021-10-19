@@ -1,6 +1,5 @@
 import * as UTILS from '../../libs/utils.js';
 import * as MV from '../../libs/MV.js'
-import { vec2 } from '../libs/MV.js';
 
 /** @type {WebGLRenderingContext} */
 let gl;
@@ -14,12 +13,13 @@ let vertices = [];
 var program;
 var tw;
 var th;
-var dx,dy;
-var drawVertice = [];
+var proton = [];
+var electron = [];
 var color;
 const MAX_CHARGES = 30;
 var angleShader;
 var angle = 0;
+var draw_moving_points = true;
 
 function animate(time)
 {
@@ -36,10 +36,16 @@ function animate(time)
     gl.uniform4fv(color, [1.0,1.0,1.0,1.0]);
     gl.drawArrays(gl.POINTS, 0, vertices.length);
 
-    gl.uniform4fv(color, [0.5,0.3,1.0,1.0]);
-    gl.uniform1f(angleShader, angle);
-    angle += 0.03;
-    gl.drawArrays(gl.POINTS, vertices.length, Math.min(drawVertice.length), MAX_CHARGES);
+    if (draw_moving_points){
+        gl.uniform4fv(color, [0.5,0.3,1.0,1.0]);
+        gl.uniform1f(angleShader, -angle);
+        gl.drawArrays(gl.POINTS, vertices.length, Math.min(electron.length, MAX_CHARGES/2.0));
+
+        gl.uniform4fv(color, [1.0,0.0,0.0,1.0]);
+        gl.uniform1f(angleShader, angle);
+        gl.drawArrays(gl.POINTS, vertices.length + MAX_CHARGES/2.0, Math.min(proton.length, MAX_CHARGES/2.0));
+    }
+    angle += 0.005;
 }
 
 function setup(shaders)
@@ -69,7 +75,7 @@ function setup(shaders)
     gl.bindBuffer(gl.ARRAY_BUFFER, aBuffer);
     gl.bufferData(gl.ARRAY_BUFFER, vertices.length*MV.sizeof["vec2"] + MAX_CHARGES*MV.sizeof["vec2"], gl.STATIC_DRAW);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, MV.flatten(vertices));
-
+    
     //
     const vPosition = gl.getAttribLocation(program, "vPosition");
     gl.vertexAttribPointer(vPosition, 2, gl.FLOAT, false, 0, 0);
@@ -79,8 +85,6 @@ function setup(shaders)
     tw = gl.getUniformLocation(program, "table_width");
     th = gl.getUniformLocation(program, "table_height");
     color = gl.getUniformLocation(program, "color");
-    dx = gl.getUniformLocation(program, "dx");
-    dy = gl.getUniformLocation(program, "dy");
     angleShader = gl.getUniformLocation(program, "uTheta");
 
     //event listeners
@@ -96,15 +100,26 @@ function setup(shaders)
         // Start by getting x and y coordinates inside the canvas element
         var x = (event.offsetX / canvas.width - 1 / 2) * table_width;
         var y = -(event.offsetY / canvas.height - 1 / 2) * table_height;
-        
-        gl.bufferSubData(gl.ARRAY_BUFFER, vertices.length*MV.sizeof["vec2"] + (drawVertice.length % MAX_CHARGES)*MV.sizeof["vec2"], MV.flatten(MV.vec2(x,y)));
-        drawVertice.push(MV.vec2(x,y));
 
-        for(let i=0; i<MAX_CHARGES && i<drawVertice.length; i++) {
-            const uPosition = gl.getUniformLocation(program, "uPosition[" + i + "]");
-            gl.uniform2fv(uPosition, MV.flatten(drawVertice[i]));
+        if(event.shiftKey) {
+            let electron_position = electron.length % (MAX_CHARGES/2);
+            let bufferPlace = vertices.length*MV.sizeof["vec2"] + electron_position*MV.sizeof["vec2"];
+            gl.bufferSubData(gl.ARRAY_BUFFER, bufferPlace, MV.flatten(MV.vec2(x,y)));
+            electron.push(MV.vec2(x,y));
+        }
+        else{
+            let proton_position = proton.length % (MAX_CHARGES/2);
+            let bufferPlace =  vertices.length*MV.sizeof["vec2"] + (MAX_CHARGES/2)*MV.sizeof["vec2"] + proton_position*MV.sizeof["vec2"];
+            gl.bufferSubData(gl.ARRAY_BUFFER, bufferPlace, MV.flatten(MV.vec2(x,y)));
+            proton.push(MV.vec2(x,y));
         }
     }); 
+
+    document.addEventListener("keyup", event => {
+        if (event.code === "Space") {
+           draw_moving_points = !draw_moving_points;
+        }
+    });
 
     window.requestAnimationFrame(animate);
 }
