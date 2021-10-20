@@ -35,11 +35,9 @@ function animate(time)
     gl.useProgram(program);
     gl.uniform1f(tw, table_width);
     gl.uniform1f(th, table_height);
-    //gl.uniform4fv(color, [1.0,1.0,1.0,1.0]);
-    //gl.drawArrays(gl.POINTS, 0, vertices.length);
+    gl.uniform4fv(color, [1.0,1.0,1.0,1.0]);
+    gl.drawArrays(gl.POINTS, 0, vertices.length);
 
-    if (draw_moving_points) {opacity = 1.0;}
-    else {opacity = 0.0;}
     gl.uniform4fv(color, [0.5,0.3,1.0,opacity]);
     for(let i = 0; i < electron.length; i++){
         var s = Math.sin( angle );
@@ -50,7 +48,7 @@ function animate(time)
         electron[i][1] = s*x + c*y;
     }
     gl.bufferSubData(gl.ARRAY_BUFFER, vertices.length*MV.sizeof["vec2"], MV.flatten(electron));
-    gl.drawArrays(gl.POINTS, vertices.length, Math.min(electron.length, MAX_CHARGES/2.0));
+    if (draw_moving_points) {gl.drawArrays(gl.POINTS, vertices.length, Math.min(electron.length, MAX_CHARGES/2.0));}
 
     gl.uniform4fv(color, [1.0,0.0,0.0,opacity]);
     for(let i = 0; i < proton.length; i++){
@@ -62,7 +60,7 @@ function animate(time)
         proton[i][1] = s*x + c*y;
     }
     gl.bufferSubData(gl.ARRAY_BUFFER, vertices.length*MV.sizeof["vec2"] + (MAX_CHARGES/2.0) *MV.sizeof["vec2"], MV.flatten(proton));
-    gl.drawArrays(gl.POINTS, vertices.length + MAX_CHARGES/2.0, Math.min(proton.length, MAX_CHARGES/2.0));
+    if (draw_moving_points) gl.drawArrays(gl.POINTS, vertices.length + MAX_CHARGES/2.0, Math.min(proton.length, MAX_CHARGES/2.0));
 }
 
 function setup(shaders)
