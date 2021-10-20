@@ -5,8 +5,7 @@ import * as MV from '../../libs/MV.js' // imports from the libraries
 
 const table_width = 3.0;
 const grid_spacing = 0.05;
-const MAX_CHARGES = 30;
-const ANGLE = 0.02; 
+const MAX_CHARGES = 30; 
 
 let gl;
 let table_height;
@@ -17,11 +16,19 @@ let electronsV = [];
 let protonsV = [];
 
 var hidden = false;
+var isMoving = false;
 var program;
-var aBuffer;
+var chargesProgram;
+var gridBuffer;
+var chargesBuffer;
 var tbw;
 var tbh;
+var chargesTbw;
+var chargesTbh;
 var colour;
+var chargesColour;
+var vPosition;
+var vChargesPosition;
 var vel = 0.05;
 var velLoc;
 var totalCharges;
@@ -39,19 +46,40 @@ function animate(time) {
 
     // drawing code
     gl.clear(gl.COLOR_BUFFER_BIT);
-
+    
+    /** GRID PROGRAM */
     gl.useProgram(program);
-    gl.uniform1f(velLoc, 0); // puts the angle of Vert of rotation to 0.
+    gl.bindBuffer(gl.ARRAY_BUFFER, gridBuffer);
+
+    vPosition = gl.getAttribLocation(program, "vPosition");
+    gl.vertexAttribPointer(vPosition, 3, gl.FLOAT, false, 0, 0);  
+    gl.enableVertexAttribArray(vPosition);
+
+    gl.uniform4f(colour, 1.0, 1.0, 1.0, 1.0); // a colour fica com uma cor uniforme   
+    gl.drawArrays(gl.POINTS, 0, vertices.length); //gl.points -> draw a single dot
+    
     gl.uniform1f(tbw, table_width);
     gl.uniform1f(tbh, table_height);
-    gl.uniform4f(colour, 1.0, 0.0, 1.0, 0.0); // a colour fica com uma cor uniforme   
-    gl.drawArrays(gl.POINTS, 0, vertices.length); //gl.points -> draw a single dot
-    // starts in 0 and ends in the last index of vertices array
+
+    gl.uniform1f(velLoc, 0); // puts the angle of Vert of rotation to 0.
+    
+    /** CHARGES PROGRAM */
+    gl.useProgram(chargesProgram);
+    gl.bindBuffer(gl.ARRAY_BUFFER, chargesBuffer);
+
+    vChargesPosition = gl.getAttribLocation(chargesProgram, "chargesPosition");
+    gl.vertexAttribPointer(vChargesPosition, 2, gl.FLOAT, false, 0, 0);  
+    gl.enableVertexAttribArray(vChargesPosition); 
+    
+    gl.uniform1f(chargesTbw, table_width);
+    gl.uniform1f(chargesTbh, table_height);
+
+    gl.uniform1f(velLoc, 0);
     gl.uniform1f(velLoc, vel);
 
     // gl.uniform4fv(colour, [1.0, 1.0, 1.0, 1.0]); [0.0, 1.0, 0.0, 1.0]
     if(!hidden) {
-        gl.uniform4f(colour, 0.0, 1.0, 0.0, 1.0); // a colour fica com uma cor uniforme -> verde (p. charges)
+        gl.uniform4f(chargesColour, 0.0, 1.0, 0.0, 1.0); // a colour fica com uma cor uniforme -> verde (p. charges)
         for(let i = 0; i < electronsV.length; i++) {
             var x = electronsV[i][0]; // gl_Position.z = 0.0;
             var y = electronsV[i][1]; // gl_Position.w = 1.0;
@@ -60,10 +88,10 @@ function animate(time) {
             // gl_Position.y = s * vPosition.x/(table_width/2.0) + c * vPosition.y/(table_height/2.0);
             electronsV[i][1]= Math.sin(vel) * x + Math.cos(vel) * y; 
         }
-        gl.bufferSubData(gl.ARRAY_BUFFER, vertices.length * MV.sizeof["vec2"], MV.flatten(electronsV));
-        gl.drawArrays(gl.POINTS, vertices.length, Math.min(electronsV.length, MAX_CHARGES/2));
+        gl.bufferSubData(gl.ARRAY_BUFFER, electronsV.length * MV.sizeof["vec2"], MV.flatten(electronsV));
+        gl.drawArrays(gl.POINTS, electronsV.length, Math.min(electronsV.length, MAX_CHARGES/2));
 
-        gl.uniform4f(colour, 1.0, 0.0, 0.0, 1.0); // a colour fica com uma cor uniforme -> vermelha (n. charges)
+        gl.uniform4f(chargesColour, 1.0, 0.0, 0.0, 1.0); // a colour fica com uma cor uniforme -> vermelha (n. charges)
         for(let i = 0; i < protonsV.length; i++) {
             var x = protonsV[i][0]; // gl_Position.z = 0.0;
             var y = protonsV[i][1]; // gl_Position.w = 1.0;
@@ -72,25 +100,9 @@ function animate(time) {
             // gl_Position.y = s * vPosition.x/(table_width/2.0) + c * vPosition.y/(table_height/2.0);
             protonsV[i][1]= Math.sin(-vel) * x + Math.cos(-vel) * y; 
         }
-        gl.bufferSubData(gl.ARRAY_BUFFER, vertices.length * MV.sizeof["vec2"]+
-        (MAX_CHARGES/2) * MV.sizeof["vec2"], MV.flatten(protonsV));
-        gl.drawArrays(gl.POINTS, vertices.length + MAX_CHARGES/2.0, Math.min(protonsV.length, MAX_CHARGES/2));
-    }
-    
-    // gl.uniform1f(velLoc, -vel); // mete velocidade no vertice de rotacao -> proctons
-    // gl.drawArrays(mode, ,..first (starting index in the arrays).., count(number of indices to be rendered);
-    // gl.drawArrays(gl.POINTS, vertices.length, protonsV.length, MAX_CHARGES); // desenha um ponto que e aloca a localizaçao na 
-    // 1a pos do array electrons e tem como maximo size MAX_CHARGES
-    
-    /**
-    // envia cada uma das posições das cargas para o vertex shader
-    for(let i = 0; i < MAX_CHARGES; i++) {
-        // o tamanho do vector terá que ser conhecido em tempo de compilação, pelo que terá que ser uma constante.
-        const uPosition = gl.getUniformLocation(program, "uPosition[" + i + "]"); // passa do programa para a posição da uPosition do shader.vert
-        // a posicao fica na posicao i do vetor position, que é atualizado
-        gl.uniform2fv(uPosition, MV.flatten(position[i]));
-    }
-    **/
+        gl.bufferSubData(gl.ARRAY_BUFFER, protonsV.length * MV.sizeof["vec2"], MV.flatten(protonsV));
+        gl.drawArrays(gl.POINTS, protonsV.length, Math.min(protonsV.length, MAX_CHARGES/2));
+    } 
 }   
 
 // setup -> Função invocada na chamada colocada no final do script, após carregamento dos shaders
@@ -106,6 +118,7 @@ function setup(shaders) {
     table_height = (table_width * canvas.height)/canvas.width;
     // Função auxiliar que devolve um programa GLSL a partir do código fonte dos seus shaders.
     program = UTILS.buildProgramFromSources(gl, shaders["shader.vert"], shaders["shader.frag"]);
+    chargesProgram = UTILS.buildProgramFromSources(gl, shaders["charShader.vert"], shaders["shader.frag"]);
     
     // Definição do visor dentro do Canvas
     gl.viewport(0, 0, canvas.width, canvas.height);
@@ -124,34 +137,35 @@ function setup(shaders) {
     // getUniformLocation -> passa do program para as var/cons
     tbw = gl.getUniformLocation(program, "table_width");
     tbh = gl.getUniformLocation(program, "table_height");
+    chargesTbw = gl.getUniformLocation(chargesProgram, "table_width");
+    chargesTbh = gl.getUniformLocation(chargesProgram, "table_height");
     colour = gl.getUniformLocation(program, "colour");
+    chargesColour = gl.getUniformLocation(chargesProgram, "colour");
     velLoc = gl.getUniformLocation(program, "uVel");
     
-    for(let x = -1.5; x <= 1.5; x = Number(Number(x + grid_spacing).toFixed(2))) {
+    for(let x = -table_width/2; x <= table_width/2; x = Number(Number(x + grid_spacing).toFixed(2))) {
         for(let y = -table_height/2; y <= table_height/2; y =  Number(Number(y + grid_spacing).toFixed(2))) {
-            vertices.push(MV.vec2(x, y));
+            vertices.push(MV.vec3(x, y, 0.0)); // n mexe
+            vertices.push(MV.vec3(x, y, 1.0)); // mexe
         }
     }
 
-    // Criação e preenchimento dum buffer no GPU com os dados dos vértices.  
-    aBuffer = gl.createBuffer();
-    // torna o buffer ativo
-    // Array guarda valores e não indices -> guarda dados de vertices
-    gl.bindBuffer(gl.ARRAY_BUFFER, aBuffer);
-    // preenche um buffer com dados -> gl.bufferData(target, size, usage);
-    // tamanho do buffer vai ser do dos vértices com os dos novos vértices(atraves do MAX_DOTS) 
-    gl.bufferData(gl.ARRAY_BUFFER, vertices.length * MV.sizeof["vec2"] + MAX_CHARGES * MV.sizeof["vec2"], gl.STATIC_DRAW);
-    // gl.bufferSubData(target, offset, ArrayBuffer srcData);
-    gl.bufferSubData(gl.ARRAY_BUFFER, 0, MV.flatten(vertices)); // cria outro buffer com outro tipo de data para ser guardada
-    //1o buffer -> guarda todos os pontos || 2o buffer -> gurada todos antes das alteracoes
-    
-    // -> vai buscar ao vertex shader a vPosition -> descreve quais e como os dados se encontram 
-    // armazenados no buffer
-    const vPosition = gl.getAttribLocation(program, "vPosition");
-    // descreve o layout de cada um dos atributos dentro de um buffer 
-    gl.vertexAttribPointer(vPosition, 2, gl.FLOAT, false, 0, 0);  
-    // enables individual attributes so that they can be used
+    gridBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, gridBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, vertices.length * MV.sizeof["vec3"], gl.STATIC_DRAW);
+    gl.bufferSubData(gl.ARRAY_BUFFER, 0, MV.flatten(vertices));
+
+    vPosition = gl.getAttribLocation(program, "vPosition");
+    gl.vertexAttribPointer(vPosition, 3, gl.FLOAT, false, 0, 0);  
     gl.enableVertexAttribArray(vPosition);
+
+    chargesBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, chargesBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, MAX_CHARGES * MV.sizeof["vec2"], gl.STATIC_DRAW);
+
+    vChargesPosition = gl.getAttribLocation(chargesProgram, "chargesPosition");
+    gl.vertexAttribPointer(vChargesPosition, 2, gl.FLOAT, false, 0, 0);  
+    gl.enableVertexAttribArray(vChargesPosition); 
 
     document.body.onkeyup = function(event) {
         if(hidden == false) {
@@ -190,17 +204,17 @@ function setup(shaders) {
             x = (event.offsetX - cx) * (table_width/2.0) / (cx);
         }
 
+        
         if(totalCharges < MAX_CHARGES) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, chargesBuffer);
             if(event.shiftKey) {
                 let ev = electronsV.length % (MAX_CHARGES/2.0);
-                gl.bufferSubData(gl.ARRAY_BUFFER, vertices.length * MV.sizeof["vec2"] + 
-                ev * MV.sizeof["vec2"], MV.flatten(MV.vec2(x,y)));
+                gl.bufferSubData(gl.ARRAY_BUFFER, ev *  MV.sizeof["vec2"], MV.flatten(MV.vec2(x,y)));
                 electronsV.push(MV.vec2(x,y)); // o evento é guardado no array electronsV, que guarda os vertices q foram clicados
             }
             else {
                 let ep = protonsV.length % (MAX_CHARGES/2.0);
-                gl.bufferSubData(gl.ARRAY_BUFFER, vertices.length * MV.sizeof["vec2"] + 
-                MAX_CHARGES/2 * MV.sizeof["vec2"] +
+                gl.bufferSubData(gl.ARRAY_BUFFER, MAX_CHARGES/2 * MV.sizeof["vec2"] + 
                 ep * MV.sizeof["vec2"], MV.flatten(MV.vec2(x,y)));
                 protonsV.push(MV.vec2(x,y)); // o evento é guardado no array protonsV, que guarda os vertices q foram clicados
             }
@@ -213,4 +227,4 @@ function setup(shaders) {
     window.requestAnimationFrame(animate);
 }
 
-UTILS.loadShadersFromURLS(["shader.vert", "shader.frag"]).then(s => setup(s));
+UTILS.loadShadersFromURLS(["shader.vert", "charShader.vert","shader.frag"]).then(s => setup(s));
