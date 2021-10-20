@@ -15,7 +15,7 @@ let table_height;
 let grid_spacing = 0.05;
 
 //uniform locations
-var v_position, charges_position, color, charges_color,pos_charges, neg_charges;
+var v_position, charges_position, color, charges_color;
 
 //points 
 const MAX_CHARGES = 30;
@@ -42,11 +42,9 @@ function animate(time)
 
     gl.uniform4fv(color, [1.0,1.0,1.0,1.0]);
     charges_pos = electron.concat(proton);
-    gl.uniform1f(pos_charges, proton.length);
-    gl.uniform1f(neg_charges, electron.length);
     for(let i=0; i<MAX_CHARGES && i<charges_pos.length; i++) {
         const uPosition = gl.getUniformLocation(program, "uPosition[" + i + "]");
-        gl.uniform2fv(uPosition, MV.flatten(charges_pos[i]));
+        gl.uniform3fv(uPosition, MV.flatten(charges_pos[i]));
     }
     gl.drawArrays(gl.LINES, 0, vertices.length);
     
@@ -54,7 +52,7 @@ function animate(time)
     gl.bindBuffer(gl.ARRAY_BUFFER, charges_buffer);
 
     charges_position = gl.getAttribLocation(charges_program, "c_position");
-    gl.vertexAttribPointer(charges_position, 2, gl.FLOAT, false, 0, 0);
+    gl.vertexAttribPointer(charges_position, 3, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(charges_position);
 
     gl.uniform4fv(charges_color, [0.5,0.3,1.0,1.0]);
@@ -78,7 +76,7 @@ function animate(time)
         proton[i][0] = -s*y + c*x;
         proton[i][1] = s*x + c*y;
     }
-    gl.bufferSubData(gl.ARRAY_BUFFER,(MAX_CHARGES/2.0) * MV.sizeof["vec2"], MV.flatten(proton));
+    gl.bufferSubData(gl.ARRAY_BUFFER,(MAX_CHARGES/2.0) * MV.sizeof["vec3"], MV.flatten(proton));
     if (draw_moving_points) gl.drawArrays(gl.POINTS, MAX_CHARGES/2.0, Math.min(proton.length, MAX_CHARGES/2.0));
 }
 
@@ -88,7 +86,7 @@ function setup(shaders)
     gl = UTILS.setupWebGL(canvas);
 
     program = UTILS.buildProgramFromSources(gl, shaders["shader.vert"], shaders["shader.frag"]);
-    charges_program = UTILS.buildProgramFromSources(gl, shaders["charges.vert"], shaders["shader.frag"]);
+    charges_program = UTILS.buildProgramFromSources(gl, shaders["charges.vert"], shaders["charges.frag"]);
 
     //uniform variables
     let grid_tw = gl.getUniformLocation(program, "table_width");
@@ -96,9 +94,7 @@ function setup(shaders)
     color = gl.getUniformLocation(program, "color");
     let charges_tw = gl.getUniformLocation(charges_program, "table_width");
     let charges_th = gl.getUniformLocation(charges_program, "table_height");
-    charges_color = gl.getUniformLocation(charges_program, "color");
-    pos_charges = gl.getUniformLocation(program, "positive_charges");
-    neg_charges = gl.getUniformLocation(program, "negative_charges");
+    charges_color = gl.getUniformLocation(charges_program, "ccolor");
 
     //canvas adjustment
     canvas.width = window.innerWidth;
@@ -118,8 +114,8 @@ function setup(shaders)
     //creating vertices
     for(let x = -(table_width/2); x <= (table_width/2); x = Number(Number(x+grid_spacing).toFixed(2))) {
         for(let y = -table_height/2; y <= table_height/2; y = Number(Number(y+grid_spacing).toFixed(2))) {
-            vertices.push(MV.vec3(x,y,0.0));
-            vertices.push(MV.vec3(x,y,1.0));
+            vertices.push(MV.vec3(x + (Math.random()*0.01),y + (Math.random()*0.01),0.0));
+            vertices.push(MV.vec3(x + (Math.random()*0.01),y + (Math.random()*0.01),1.0));
         }
     }
 
@@ -132,7 +128,7 @@ function setup(shaders)
     //creating the buffer for the charges
     charges_buffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, charges_buffer);
-    gl.bufferData(gl.ARRAY_BUFFER, MAX_CHARGES*MV.sizeof["vec2"], gl.STATIC_DRAW);
+    gl.bufferData(gl.ARRAY_BUFFER, MAX_CHARGES*MV.sizeof["vec3"], gl.STATIC_DRAW);
 
     //event listeners
 
@@ -160,14 +156,14 @@ function setup(shaders)
             let electron_position = drawn_electrons % (MAX_CHARGES/2);
             let bufferPlace = electron_position*MV.sizeof["vec2"];
             //gl.bufferSubData(gl.ARRAY_BUFFER, bufferPlace, MV.flatten(MV.vec2(x,y)));
-            electron.splice(electron_position, 1, MV.vec2(x,y));
+            electron.splice(electron_position, 1, MV.vec3(x,y, -1.0));
             drawn_electrons++;
         }
         else{
             let proton_position = drawn_protons % (MAX_CHARGES/2);
             let bufferPlace = proton_position * MV.sizeof["vec2"];
            // gl.bufferSubData(gl.ARRAY_BUFFER, bufferPlace, MV.flatten(MV.vec2(x,y)));
-            proton.splice(proton_position, 1, MV.vec2(x,y));
+            proton.splice(proton_position, 1, MV.vec3(x,y, 1.0));
             drawn_protons++;
         }
     }); 
@@ -181,4 +177,4 @@ function setup(shaders)
     window.requestAnimationFrame(animate);
 }
 
-UTILS.loadShadersFromURLS(["shader.vert", "shader.frag", "charges.vert"]).then(s => setup(s));
+UTILS.loadShadersFromURLS(["shader.vert", "shader.frag", "charges.vert", "charges.frag"]).then(s => setup(s));
