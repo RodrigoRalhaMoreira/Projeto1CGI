@@ -2,8 +2,8 @@
 // Pixel shader -> The fragment shader takes care of how the pixels between the vertices look.
 //  the image is calculated and the pixels between the vertices are filled in or "coloured". 
 precision highp float;
-varying vec4 varyingColour;
+uniform vec4 chargesColour;
 
 void main() {
-    gl_FragColor = varyingColour;
+    gl_FragColor = chargesColour;
 }
