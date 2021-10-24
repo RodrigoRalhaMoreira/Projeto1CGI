@@ -29,29 +29,28 @@ vec4 colorize(vec2 f)
 
 void main()
 {
-    vec2 normalized_direction;
     vec2 sumDirections;
     gl_PointSize = 4.0;
+
     if(vPosition.z == 0.0){
         gl_Position = vPosition / vec4(table_width/2.0,table_height/2.0,1.0,1.0);
-        fcolor = colorize(vec2(vPosition.x/(table_width/2.0), vPosition.y /(table_height/2.0)));
+        fcolor = vec4(0.0,0.0,0.0,1.0);
     }
     else{
+        //calculate the sum of all forces that are being applied in the vertex
         for(int i = 0; i < MAX_CHARGES; i++) {
-            vec2 declive = vec2(vPosition.x - uPosition[i].x, vPosition.y - uPosition[i].y);
-            normalized_direction = normalize(declive);
+            vec2 direction = vec2(vPosition.x - uPosition[i].x, vPosition.y - uPosition[i].y);
             float d = distance(vec2(vPosition.x, vPosition.y), vec2(uPosition[i].x, uPosition[i].y));
-            float eletric_field = (COLOUMB * uPosition[i].z) / d;
-            normalized_direction *= eletric_field;
-            sumDirections += normalized_direction;
-        }
-        sumDirections = sumDirections * 0.0000000000005;
-        if(distance(sumDirections.x, sumDirections.y) > 0.25) sumDirections = normalized_direction * 0.2;
+            float eletric_field = (COLOUMB * uPosition[i].z) / (d*d);
+            sumDirections += (direction * eletric_field);
+        }   
+
+        if(length(sumDirections) > 0.25) sumDirections = normalize(sumDirections) * 0.25;
+
         float adjusted_x = (vPosition.x + sumDirections.x)/(table_width/2.0);
         float adjusted_y = (vPosition.y + sumDirections.y)/(table_height/2.0);
+        
         gl_Position = vec4(adjusted_x, adjusted_y, 1.0, 1.0); 
         fcolor = colorize(vec2(sumDirections.x, sumDirections.y));
      }
-    //fcolor = colorize(vec2((vPosition.x + sumDirections.x)/(table_width/2.0), (vPosition.y + sumDirections.y)/(table_height/2.0)));
-    //fcolor = colorize(vec2(sumDirections.x, sumDirections.y));
 }
