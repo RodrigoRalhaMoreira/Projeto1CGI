@@ -12,6 +12,7 @@ html, body {
     left: 1%;
     color: rgb(241, 231, 231);
     text-align: left;
+    font-family: 'Lucida Sans', 'Lucida Sans Regular', 'Lucida Grande', 'Lucida Sans Unicode', Geneva, Verdana, sans-serif;
 }
 .functionalities p {
     padding: 5px;

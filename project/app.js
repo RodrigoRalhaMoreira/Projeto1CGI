@@ -28,10 +28,15 @@ var v_position, charges_position,charges_color, charges_size;
 //points 
 const MAX_CHARGES = 30;
 const CHARGE_VALUE = 0.000000000010;
+const max_angle = 0.2;
+const min_angle = 0.01;
+const max_size = 100.0;
+const min_size = 10.0;
 var angle = 0.02;
 var default_size = 20.0;
 let vertices = [], proton = [], electron = [], charges_pos = [];
 var draw_moving_points = true;
+var animation_segments = false;
 var drawn_protons = 0;
 var drawn_electrons = 0;
 
@@ -55,7 +60,10 @@ function adjust_charge_position (arr, angle, time) {
         var x = arr[i][0];
         arr[i][0] = -s*y + c*x;
         arr[i][1] = s*x + c*y;
-        var value = (Math.sin(time/300)/2 +0.55);
+        var value;
+        if(animation_segments)
+            value = (Math.sin(time/300)/2 +0.6);
+        else value = 1.0;
         if(angle < 0) arr[i][2] = -CHARGE_VALUE * value;
         else arr[i][2] = CHARGE_VALUE * value;
     }
@@ -192,15 +200,17 @@ function setup(shaders)
     document.addEventListener("keyup", event => {
         if (event.code === "Space") 
            draw_moving_points = !draw_moving_points;
-        if(event.code === "BracketLeft")//the plus char
+        if(event.code === "BracketLeft" && angle < max_angle)//the plus char
             angle = angle * 1.3;
-        if(event.code === "Slash")//the minus char
+        if(event.code === "Slash" && angle > min_angle)//the minus char
             angle = angle / 1.3;
-        if(event.code === "ArrowUp"){
+        if(event.code === "ArrowUp" && default_size < max_size){
             default_size = default_size * 1.3; 
         }
-        if(event.code === "ArrowDown")
-            default_size = default_size / 1.3; 
+        if(event.code === "ArrowDown" && default_size > min_size)
+            default_size = default_size / 1.3;
+        if (event.code === "Enter") 
+            animation_segments = !animation_segments;
     });
 
     window.requestAnimationFrame(animate);
