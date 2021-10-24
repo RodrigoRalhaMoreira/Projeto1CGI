@@ -6,3 +6,14 @@ html, body {
     overflow: hidden; /*  Disable scrollbars */
     display: block;  /* No floating content on sides */
 }
+.functionalities {
+    position: absolute;
+    top: 1%;
+    left: 1%;
+    color: rgb(241, 231, 231);
+    text-align: left;
+}
+.functionalities p {
+    padding: 5px;
+    font-size: 12px;
+}

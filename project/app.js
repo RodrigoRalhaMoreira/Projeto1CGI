@@ -23,16 +23,13 @@ const grid_spacing = 0.05;
 let table_height;
 
 //uniform locations
-var v_position, charges_position,charges_color;
+var v_position, charges_position,charges_color, charges_size;
 
 //points 
 const MAX_CHARGES = 30;
-const angle = 0.02;
 const CHARGE_VALUE = 0.000000000010;
-const MIN_MULTIPLIER = 0.05;
-const MAX_MULTIPLIER = 1.1;
-var length_multiplier = 0.05;
-var direction = true;
+var angle = 0.02;
+var default_size = 20.0;
 let vertices = [], proton = [], electron = [], charges_pos = [];
 var draw_moving_points = true;
 var drawn_protons = 0;
@@ -49,7 +46,7 @@ function establish_location(program, uniform_variable, buffer) {
     return uniform_variable;
 }
 
-function adjust_charge_position (arr, angle) {
+function adjust_charge_position (arr, angle, time) {
     //for each charge, it will suffer a rotation from its original position that depends on the given angle
     for(let i = 0; i < arr.length; i++){
         var s = Math.sin( angle );
@@ -58,15 +55,17 @@ function adjust_charge_position (arr, angle) {
         var x = arr[i][0];
         arr[i][0] = -s*y + c*x;
         arr[i][1] = s*x + c*y;
-        arr[i][2] = CHARGE_VALUE * length_multiplier;
+        var value = (Math.sin(time/300)/2 +0.55);
+        if(angle < 0) arr[i][2] = -CHARGE_VALUE * value;
+        else arr[i][2] = CHARGE_VALUE * value;
     }
     return arr;
 }
 function animate(time)
 {
+    
     // No proximo refrescamente quero que esta funcao seja chamada
     window.requestAnimationFrame(animate);
-
     // Drawing grid
     gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -80,15 +79,15 @@ function animate(time)
     }
     
     gl.drawArrays(gl.LINES, 0, vertices.length);
-    
+
     // Drawing charges
 
     //establish the position of the charges vertices
     charges_position = establish_location(charges_program, charges_position, charges_buffer);
     
     //adjust the positions of the charges
-    electron = adjust_charge_position(electron, -angle);
-    proton = adjust_charge_position(proton, angle);
+    electron = adjust_charge_position(electron, -angle, time);
+    proton = adjust_charge_position(proton, angle, time);
 
     //Put the new positions of the charges in the buffer
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, MV.flatten(electron));
@@ -96,16 +95,12 @@ function animate(time)
 
     //Spacebar changes the value of this variable to draw or not draw the charges
     if (draw_moving_points) {
+        gl.uniform1f(charges_size, default_size);
         gl.uniform4fv(charges_color, [0.73,0.1,0.14,1.0]);
         gl.drawArrays(gl.POINTS, 0, electron.length);
         gl.uniform4fv(charges_color, [0.0,0.52,0.2,1.0]);
         gl.drawArrays(gl.POINTS, MAX_CHARGES/2.0, proton.length);
-    }
-
-    if(direction) length_multiplier += 0.01;
-    else length_multiplier -= 0.01;
-    if(length_multiplier > MAX_MULTIPLIER) direction = false;
-    if(length_multiplier < MIN_MULTIPLIER) direction = true;
+    } 
 }
 
 function setup(shaders)
@@ -123,6 +118,7 @@ function setup(shaders)
     let charges_tw = gl.getUniformLocation(charges_program, "table_width");
     let charges_th = gl.getUniformLocation(charges_program, "table_height");
     charges_color = gl.getUniformLocation(charges_program, "color");
+    charges_size = gl.getUniformLocation(charges_program, "size");
 
     //canvas adjustment
     canvas.width = window.innerWidth;
@@ -194,9 +190,17 @@ function setup(shaders)
     }); 
 
     document.addEventListener("keyup", event => {
-        if (event.code === "Space") {
+        if (event.code === "Space") 
            draw_moving_points = !draw_moving_points;
+        if(event.code === "BracketLeft")//the plus char
+            angle = angle * 1.3;
+        if(event.code === "Slash")//the minus char
+            angle = angle / 1.3;
+        if(event.code === "ArrowUp"){
+            default_size = default_size * 1.3; 
         }
+        if(event.code === "ArrowDown")
+            default_size = default_size / 1.3; 
     });
 
     window.requestAnimationFrame(animate);
