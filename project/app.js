@@ -28,7 +28,9 @@ var v_position, charges_position,charges_color;
 //points 
 const MAX_CHARGES = 30;
 const angle = 0.02;
-const CHARGE_VALUE = 0.000000000015;
+const CHARGE_VALUE = 0.000000000010;
+var length_multiplier = 0.05;
+var direction = true;
 let vertices = [], proton = [], electron = [], charges_pos = [];
 var draw_moving_points = true;
 var drawn_protons = 0;
@@ -48,12 +50,13 @@ function establish_location(program, uniform_variable, buffer) {
 function adjust_charge_position (arr, angle) {
     //for each charge, it will suffer a rotation from its original position that depends on the given angle
     for(let i = 0; i < arr.length; i++){
-        var s = Math.sin( -angle );
-        var c = Math.cos( -angle );
+        var s = Math.sin( angle );
+        var c = Math.cos( angle );
         var y = arr[i][1];  
         var x = arr[i][0];
         arr[i][0] = -s*y + c*x;
         arr[i][1] = s*x + c*y;
+        arr[i][2] = CHARGE_VALUE * length_multiplier;
     }
     return arr;
 }
@@ -79,8 +82,8 @@ function animate(time)
     charges_position = establish_location(charges_program, charges_position, charges_buffer);
     
     //adjust the positions of the charges
-    electron = adjust_charge_position(electron, angle);
-    proton = adjust_charge_position(proton, -angle);
+    electron = adjust_charge_position(electron, -angle);
+    proton = adjust_charge_position(proton, angle);
 
     //Put the new positions of the charges in the buffer
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, MV.flatten(electron));
@@ -93,6 +96,11 @@ function animate(time)
         gl.uniform4fv(charges_color, [0.0,0.52,0.2,1.0]);
         gl.drawArrays(gl.POINTS, MAX_CHARGES/2.0, Math.min(proton.length, MAX_CHARGES/2.0));
     }
+
+    if(direction) length_multiplier += 0.01;
+    else length_multiplier -= 0.01;
+    if(length_multiplier > 1.1) direction = false;
+    if(length_multiplier < 0.05) direction = true;
 }
 
 function setup(shaders)
