@@ -29,6 +29,8 @@ var v_position, charges_position,charges_color;
 const MAX_CHARGES = 30;
 const angle = 0.02;
 const CHARGE_VALUE = 0.000000000010;
+const MIN_MULTIPLIER = 0.05;
+const MAX_MULTIPLIER = 1.1;
 var length_multiplier = 0.05;
 var direction = true;
 let vertices = [], proton = [], electron = [], charges_pos = [];
@@ -68,6 +70,7 @@ function animate(time)
     // Drawing grid
     gl.clear(gl.COLOR_BUFFER_BIT);
 
+    //establish the position of the grid vertices
     v_position = establish_location(program, v_position, grid_buffer);
 
     charges_pos = electron.concat(proton);
@@ -78,7 +81,9 @@ function animate(time)
     
     gl.drawArrays(gl.LINES, 0, vertices.length);
     
-     // Drawing charges
+    // Drawing charges
+
+    //establish the position of the charges vertices
     charges_position = establish_location(charges_program, charges_position, charges_buffer);
     
     //adjust the positions of the charges
@@ -92,15 +97,15 @@ function animate(time)
     //Spacebar changes the value of this variable to draw or not draw the charges
     if (draw_moving_points) {
         gl.uniform4fv(charges_color, [0.73,0.1,0.14,1.0]);
-        gl.drawArrays(gl.POINTS, 0, Math.min(electron.length, MAX_CHARGES/2.0));
+        gl.drawArrays(gl.POINTS, 0, electron.length);
         gl.uniform4fv(charges_color, [0.0,0.52,0.2,1.0]);
-        gl.drawArrays(gl.POINTS, MAX_CHARGES/2.0, Math.min(proton.length, MAX_CHARGES/2.0));
+        gl.drawArrays(gl.POINTS, MAX_CHARGES/2.0, proton.length);
     }
 
     if(direction) length_multiplier += 0.01;
     else length_multiplier -= 0.01;
-    if(length_multiplier > 1.1) direction = false;
-    if(length_multiplier < 0.05) direction = true;
+    if(length_multiplier > MAX_MULTIPLIER) direction = false;
+    if(length_multiplier < MIN_MULTIPLIER) direction = true;
 }
 
 function setup(shaders)
@@ -139,8 +144,8 @@ function setup(shaders)
         for(let y = -table_height/2; y <= table_height/2; y = Number(Number(y+grid_spacing).toFixed(2))) {
             var num1 = ((Math.random()-0.5)*2*0.02);//random position between -0.02 and 0.02
             var num2 = ((Math.random()-0.5)*2*0.02);
-            vertices.push(MV.vec3(x + num1,y + num2,0.0));
-            vertices.push(MV.vec3(x+ num1,y + num2,1.0));
+            vertices.push(MV.vec3(x + num1,y + num2,0.0)); 
+            vertices.push(MV.vec3(x + num1,y + num2,1.0)); 
         }
     }
 

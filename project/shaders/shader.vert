@@ -3,6 +3,7 @@
 attribute vec4 vPosition;
 uniform float table_width, table_height;
 const int MAX_CHARGES=30;
+const float MAX_LINE_LENGTH = 0.25; //5 grid spacings
 uniform vec3 uPosition[MAX_CHARGES];
 varying vec4 fcolor;
 
@@ -45,7 +46,8 @@ void main()
             sumDirections += (direction * eletric_field);
         }   
 
-        if(length(sumDirections) > 0.25) sumDirections = normalize(sumDirections) * 0.25;
+        if(length(sumDirections) > MAX_LINE_LENGTH) 
+            sumDirections = normalize(sumDirections) * MAX_LINE_LENGTH;
 
         float adjusted_x = (vPosition.x + sumDirections.x)/(table_width/2.0);
         float adjusted_y = (vPosition.y + sumDirections.y)/(table_height/2.0);

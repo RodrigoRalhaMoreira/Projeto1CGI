@@ -4,6 +4,6 @@ uniform float table_height;
 
 void main()
 {   
-    gl_PointSize = 60.0;
+    gl_PointSize = 30.0;
     gl_Position = vPosition / vec4(table_width/2.0,table_height/2.0,1.0,1.0);
 }
